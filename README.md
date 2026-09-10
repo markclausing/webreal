@@ -187,10 +187,18 @@ tap in it fires — because on a phone the thing you most want after pointing at
 somebody is to shoot them, and reaching for a button loses the aim. `FIRE`,
 `JUMP` and `WPN` are along the bottom right where a thumb already is.
 
-The thumb holds the scene rather than pushing a pointer: drag left and the room
-comes left, which turns you right. `Look` in the menu sets how far a swipe goes,
-for the mouse and the thumb alike, and `Invert Y` flips the vertical half back
-for anybody who wants it the other way.
+The thumb and the mouse are two different instruments and they do not share a
+setting. A mouse is a pointer you push the view with; a thumb on glass is holding
+the scene, so dragging left brings the room left and turns you right. Both have
+their own speed in the menu — a stepper, not four presets, because the number
+that is right for a phone is about a fifth of the one that is right for a mouse —
+and the thumb has its own `Holds the scene` / `Pushes the view` switch on top of
+that. Set it to push if you are testing the phone controls on a laptop
+touchpad, which is the one machine where both conventions turn up in the same
+hour.
+
+`Thumbs: Always` puts the thumb controls on a machine that never asked for them,
+which is the other half of testing them without a phone.
 
 The playing surface is marked `touch-action: none`, which is not a detail. Left
 off, the first few pixels of every drag arrive and then the browser decides the

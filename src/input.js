@@ -82,11 +82,30 @@ export function defaultBindings() {
   return { ...PRESETS[0].bindings };
 }
 
+/**
+ * What each device is set to.
+ *
+ * The mouse and the thumb are two different instruments and they do not share a
+ * number. A mouse is a pointer you push the view with; a thumb on glass is
+ * holding the scene, so it wants the opposite sign and about a fifth of the
+ * gain. Anybody testing the phone controls on a laptop touchpad meets both
+ * conventions in the same hour, which is the whole reason these are separate.
+ */
 export function loadSettings(key = STORAGE_KEY) {
   const fallback = {
     bindings: defaultBindings(),
+    // Mouse and gamepad.
     sensitivity: 1.0,
     invert: false,
+    // Thumbs.
+    touchSensitivity: 1.0,
+    // Does dragging hold the scene (drag left, the room comes left, you turn
+    // right) or push the view (drag left, you turn left)? Holding is what a
+    // phone wants; pushing is what a touchpad wants.
+    touchHold: true,
+    touchInvertY: false,
+    // auto | on | off - whether the thumb controls appear at all.
+    thumbs: 'auto',
   };
   try {
     const raw = globalThis.localStorage?.getItem(key);
@@ -99,9 +118,15 @@ export function loadSettings(key = STORAGE_KEY) {
       if (typeof code === 'string' && code) fallback.bindings[action] = code;
     }
     if (Number.isFinite(saved?.sensitivity)) {
-      fallback.sensitivity = Math.max(0.1, Math.min(6, saved.sensitivity));
+      fallback.sensitivity = clampSensitivity(saved.sensitivity);
+    }
+    if (Number.isFinite(saved?.touchSensitivity)) {
+      fallback.touchSensitivity = clampSensitivity(saved.touchSensitivity);
     }
     fallback.invert = !!saved?.invert;
+    if (saved?.touchHold !== undefined) fallback.touchHold = !!saved.touchHold;
+    fallback.touchInvertY = !!saved?.touchInvertY;
+    if (['auto', 'on', 'off'].includes(saved?.thumbs)) fallback.thumbs = saved.thumbs;
     return fallback;
   } catch {
     return fallback;
@@ -112,6 +137,16 @@ export function saveSettings(settings, key = STORAGE_KEY) {
   try {
     globalThis.localStorage?.setItem(key, JSON.stringify(settings));
   } catch { /* private mode, storage full: not worth interrupting a game for */ }
+}
+
+export const SENSITIVITY_MIN = 0.2;
+export const SENSITIVITY_MAX = 6;
+
+/** Kept inside the range the steppers can reach, and to one decimal place: a
+ *  sensitivity of 1.2000000000000002 in a menu is a bug people report. */
+export function clampSensitivity(value) {
+  const v = Math.max(SENSITIVITY_MIN, Math.min(SENSITIVITY_MAX, Number(value) || 1));
+  return Math.round(v * 10) / 10;
 }
 
 /** Keys the browser does something else with, swallowed whether bound or not. */

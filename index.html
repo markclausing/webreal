@@ -105,18 +105,14 @@
             <div class="btns" id="presetButtons"></div>
           </div>
           <div class="row">
-            <label>Look</label>
-            <div class="btns">
-              <button data-sens="0.5">Slow</button>
-              <button data-sens="1" class="active">Normal</button>
-              <button data-sens="1.8">Fast</button>
-              <button data-sens="3">Very fast</button>
+            <label>Mouse look</label>
+            <div class="btns stepper">
+              <button data-sens="-0.1" aria-label="Slower">&minus;</button>
+              <span id="sensValue">1.0&times;</span>
+              <button data-sens="0.1" aria-label="Faster">+</button>
+              <button data-sens="reset">Reset</button>
             </div>
           </div>
-          <p class="fineprint">
-            The same setting for the mouse and for the thumb on the right of a
-            phone screen.
-          </p>
           <div class="row">
             <label>Invert Y</label>
             <div class="btns">
@@ -124,6 +120,49 @@
               <button data-invert="on">Yes</button>
             </div>
           </div>
+          <p class="fineprint">
+            For the mouse, a touchpad and the gamepad's right stick. The thumb
+            controls below have their own, because a thumb on glass is a
+            different instrument.
+          </p>
+
+          <div class="row">
+            <label>Thumb look</label>
+            <div class="btns stepper">
+              <button data-touchsens="-0.1" aria-label="Slower">&minus;</button>
+              <span id="touchSensValue">1.0&times;</span>
+              <button data-touchsens="0.1" aria-label="Faster">+</button>
+              <button data-touchsens="reset">Reset</button>
+            </div>
+          </div>
+          <div class="row">
+            <label>Thumb drag</label>
+            <div class="btns">
+              <button data-hold="on" class="active">Holds the scene</button>
+              <button data-hold="off">Pushes the view</button>
+            </div>
+          </div>
+          <div class="row">
+            <label>Thumb Y</label>
+            <div class="btns">
+              <button data-tinvert="off" class="active">Normal</button>
+              <button data-tinvert="on">Inverted</button>
+            </div>
+          </div>
+          <div class="row">
+            <label>Thumbs</label>
+            <div class="btns">
+              <button data-thumbs="auto" class="active">Auto</button>
+              <button data-thumbs="on">Always</button>
+              <button data-thumbs="off">Never</button>
+            </div>
+          </div>
+          <p class="fineprint">
+            Holding the scene means dragging left brings the room left, which
+            turns you right - which is what a phone wants and what a touchpad
+            does not. <b>Always</b> puts the thumb controls on a machine that has
+            not asked for them, which is how you try them without a phone.
+          </p>
           <ul class="hints">
             <li><b>The rocket is the map.</b> Every arena puts its best gun in the
               worst place to stand. Going for it is a decision, not a detour.</li>

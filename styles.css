@@ -132,6 +132,24 @@ h2 {
   flex: 1;
 }
 
+.stepper { align-items: center; }
+
+.stepper > button:first-child,
+.stepper > button:nth-child(3) {
+  width: 34px;
+  text-align: center;
+  font-size: 14px;
+  padding: 6px 0;
+}
+
+.stepper > span {
+  min-width: 56px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--hot);
+  font-variant-numeric: tabular-nums;
+}
+
 button {
   font: inherit;
   font-size: 12px;

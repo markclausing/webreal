@@ -168,14 +168,20 @@ export class Touch {
     // then whoever you were turning towards has shot you. This is a swipe of
     // about two centimetres for the same ninety, and the same slider in the menu
     // moves it either way.
-    const k = input.settings.sensitivity * (YAW_UNITS / 360) * 0.38;
+    // The thumb has its own settings, not the mouse's: a different gain and a
+    // different idea of which way is which. Holding the scene means a drag to
+    // the left brings the room left and turns you right, which is the sign
+    // below; pushing the view is the mouse's convention and flips both.
+    const hold = input.settings.touchHold ? 1 : -1;
+    const k = input.settings.touchSensitivity * (YAW_UNITS / 360) * 0.38;
     if (this.dyaw) {
-      input.yaw = wrapYaw(input.yaw + this.dyaw * k);
+      input.yaw = wrapYaw(input.yaw + this.dyaw * k * hold);
       this.dyaw = 0;
     }
     if (this.dpitch) {
-      const dy = this.dpitch * (input.settings.invert ? -1 : 1);
-      input.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, input.pitch + dy * k));
+      const flip = input.settings.touchInvertY ? -1 : 1;
+      input.pitch = Math.max(-PITCH_LIMIT,
+        Math.min(PITCH_LIMIT, input.pitch + this.dpitch * k * hold * flip));
       this.dpitch = 0;
     }
 

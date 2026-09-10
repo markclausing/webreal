@@ -118,37 +118,20 @@ async function main() {
  */
 async function touchCheck(page) {
   await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  await page.evaluate("window.__touchOn = true; location.search;");
-  // The thumbs are only attached when the game thinks it is on a phone, so the
-  // page is reloaded with the override that says so.
-  await page.send('Page.navigate', {
-    url: `${base}&touch=1`,
-  });
-  if (!await page.ready()) {
-    console.log('   ✗ the page did not come back with the thumbs on');
-    failures++;
-    return;
-  }
-  const size = await page.evaluate('({ w: window.innerWidth, h: window.innerHeight })');
-  const x = size.w * 0.75;
-  const y = size.h * 0.5;
 
-  const drag = async (dx, dy) => {
-    const point = (px, py) => [{ x: px, y: py, radiusX: 8, radiusY: 8, force: 1, id: 1 }];
-    await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point(x, y) });
-    // Slowly, one step per frame or so. A drag dispatched faster than the
-    // browser turns touches into pointer events is a drag that arrives as one
-    // move, and then this measures the sensitivity of a single step.
-    for (let i = 1; i <= 8; i++) {
-      await page.send('Input.dispatchTouchEvent', {
-        type: 'touchMove', touchPoints: point(x + (dx * i) / 8, y + (dy * i) / 8),
-      });
-      await sleep(40);
-    }
-    await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await sleep(250);
+  /** Load the game with a particular set of control settings already stored. */
+  const withSettings = async (settings) => {
+    await page.send('Page.navigate', { url: 'about:blank' });
+    await sleep(200);
+    await page.send('Page.navigate', { url: `${base}&nostart=1` });
+    await sleep(400);
+    await page.evaluate(`localStorage.setItem('webreal.controls.v1', ${JSON.stringify(
+      JSON.stringify({ thumbs: 'on', ...settings }))}); true`);
+    await page.send('Page.navigate', { url: base });
+    return page.ready();
   };
 
+  const size = () => page.evaluate('({ w: window.innerWidth, h: window.innerHeight })');
   const look = async () => page.evaluate(
     '({ yaw: window.__state.bodies[0].yaw, pitch: window.__state.bodies[0].pitch })');
   const degrees = (units) => {
@@ -157,24 +140,68 @@ async function touchCheck(page) {
     return (d / 65536) * 360;
   };
 
-  const before = await look();
-  await drag(140, 0);
-  const afterYaw = await look();
-  const turned = degrees(afterYaw.yaw - before.yaw);
-  // Yaw counts the other way round from the view: turning to the left is yaw
-  // going up. A drag to the right is meant to pull the room right and take you
-  // left with it.
-  // Both halves of this matter. The sign is the convention; the size is whether
-  // the browser let the whole swipe through, and it did not until the playing
-  // surface was given touch-action: none.
-  check(`dragging the thumb right turns the view left (${turned.toFixed(0)} deg over 140 px)`,
-    turned > 35 && turned < 75);
+  /**
+   * A thumb on the right half of the screen, dragged.
+   *
+   * Dispatched as real touch events, so it goes through the same pointer
+   * handlers a phone does - and slowly, one step per frame or so: a drag sent
+   * faster than the browser turns touches into pointer events arrives as a
+   * single move, and then this measures one step instead of the whole swipe.
+   */
+  const drag = async (dx, dy) => {
+    const { w, h } = await size();
+    const x = w * 0.75;
+    const y = h * 0.5;
+    const point = (px, py) => [{ x: px, y: py, radiusX: 8, radiusY: 8, force: 1, id: 1 }];
+    const before = await look();
+    await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point(x, y) });
+    for (let i = 1; i <= 8; i++) {
+      await page.send('Input.dispatchTouchEvent', {
+        type: 'touchMove', touchPoints: point(x + (dx * i) / 8, y + (dy * i) / 8),
+      });
+      await sleep(40);
+    }
+    await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await sleep(250);
+    const after = await look();
+    return { yaw: degrees(after.yaw - before.yaw), pitch: degrees(after.pitch - before.pitch) };
+  };
 
-  await drag(0, 90);
-  const afterPitch = await look();
-  const lifted = degrees(afterPitch.pitch - afterYaw.pitch);
-  check(`dragging the thumb down looks up (${lifted.toFixed(0)} deg over 90 px)`,
-    lifted > 22 && lifted < 48);
+  // --- holding the scene, which is what a phone is set to ---
+  if (!await withSettings({ touchHold: true, touchSensitivity: 1 })) {
+    check('the page comes back with the thumbs on', false);
+    return;
+  }
+  check('the thumb controls appear when the setting says so',
+    await page.evaluate("!document.getElementById('touch').classList.contains('hidden')"));
+
+  // Yaw counts the other way round from the view: turning left is yaw going up.
+  // Dragging right is meant to pull the room right and take you left with it.
+  const held = await drag(140, 0);
+  check(`holding the scene: dragging right turns the view left (${held.yaw.toFixed(0)} deg over 140 px)`,
+    held.yaw > 35 && held.yaw < 75);
+  const heldDown = await drag(0, 90);
+  check(`holding the scene: dragging down looks up (${heldDown.pitch.toFixed(0)} deg over 90 px)`,
+    heldDown.pitch > 22 && heldDown.pitch < 48);
+
+  // --- pushing the view, which is what a touchpad is set to ---
+  if (!await withSettings({ touchHold: false, touchSensitivity: 1 })) {
+    check('the page comes back the other way round', false);
+    return;
+  }
+  const pushed = await drag(140, 0);
+  check(`pushing the view: dragging right turns the view right (${pushed.yaw.toFixed(0)} deg)`,
+    pushed.yaw < -35 && pushed.yaw > -75);
+  const pushedDown = await drag(0, 90);
+  check(`pushing the view: dragging down looks down (${pushedDown.pitch.toFixed(0)} deg)`,
+    pushedDown.pitch < -22);
+
+  // --- and that the number in the menu is the number it uses ---
+  if (!await withSettings({ touchHold: true, touchSensitivity: 2 })) return;
+  const fast = await drag(140, 0);
+  const ratio = fast.yaw / Math.max(1, held.yaw);
+  check(`twice the sensitivity turns twice as far (${fast.yaw.toFixed(0)} deg, ${ratio.toFixed(2)}x)`,
+    ratio > 1.7 && ratio < 2.3);
 }
 
 main().catch((err) => {

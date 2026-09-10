@@ -21,7 +21,7 @@ import { step } from './game/sim.js';
 import { Renderer } from './render/renderer.js';
 import { Hud } from './render/hud.js';
 import {
-  ACTIONS, ACTION_LABELS, Input, PRESETS, keyLabel, loadSettings, saveSettings,
+  ACTIONS, ACTION_LABELS, Input, PRESETS, clampSensitivity, keyLabel, loadSettings, saveSettings,
 } from './input.js';
 import { Touch } from './touch.js';
 import { Audio } from './audio.js';
@@ -49,6 +49,8 @@ const ui = {
   mapButtons: document.getElementById('mapButtons'),
   botButtons: document.getElementById('botButtons'),
   presetButtons: document.getElementById('presetButtons'),
+  sensValue: document.getElementById('sensValue'),
+  touchSensValue: document.getElementById('touchSensValue'),
   keysBody: document.getElementById('keysBody'),
   bindHint: document.getElementById('bindHint'),
   modeBlurb: document.getElementById('modeBlurb'),
@@ -122,16 +124,16 @@ function boot() {
   // Losing the pointer means the person has tabbed away, hit Escape, or the
   // browser took it back. Whichever it was, they are not playing any more.
   input.onLockChange = (locked) => {
-    if (!locked && state && running && !paused && !touch) pause(true);
+    if (!locked && state && running && !paused && !input.touch) pause(true);
   };
 
-  // ?touch=1 forces the thumbs on. It is how the phone layout is photographed
-  // from a desktop, and it is what a laptop with a touchscreen wants anyway.
-  const forceTouch = new URLSearchParams(location.search).get('touch') === '1';
-  if (forceTouch || Touch.wanted()) {
-    touch = new Touch(ui.touch, ui.screen);
-    input.touch = touch;
-  }
+  // The thumb controls are always built and only sometimes used, so that
+  // turning them on in the menu does not need a reload. ?touch=1 is the same
+  // switch from the address bar, which is how the phone layout is photographed
+  // from a desktop.
+  touch = new Touch(ui.touch, ui.screen);
+  if (new URLSearchParams(location.search).get('touch') === '1') settings.thumbs = 'on';
+  applyThumbs();
 
   buildMenu();
   resize();
@@ -162,7 +164,7 @@ function boot() {
 
   ui.screen.addEventListener('click', () => {
     if (state && paused) resume();
-    else if (state && !touch) input.lock();
+    else if (state && !input.touch) input.lock();
   });
 
   document.body.classList.add('menu');
@@ -183,7 +185,7 @@ function boot() {
  */
 function autoStart() {
   const q = new URLSearchParams(location.search);
-  if (!q.has('play')) return;
+  if (!q.has('play') || q.get('nostart') === '1') return;
   config.map = q.get('play') || config.map;
   if (q.has('mode')) config.mode = q.get('mode');
   if (q.has('bots')) config.bots = Number(q.get('bots'));
@@ -251,6 +253,32 @@ function autoStart() {
   }, 60)));
 }
 
+/**
+ * Whether this machine gets thumbs.
+ *
+ * Auto asks the browser, which is right nearly always and wrong in the one case
+ * that matters while you are working on it: a laptop testing the phone controls.
+ * Hence the other two settings.
+ */
+function thumbsWanted() {
+  if (settings.thumbs === 'on') return true;
+  if (settings.thumbs === 'off') return false;
+  return Touch.wanted();
+}
+
+function applyThumbs() {
+  const want = thumbsWanted();
+  input.touch = want ? touch : null;
+  if (!want) {
+    touch.detach();
+  } else if (state && running) {
+    touch.attach();
+  }
+  // With thumbs, the pointer is not locked - the two are different ways of
+  // playing and holding both at once locks the pointer on a touchscreen.
+  if (want) input.unlock();
+}
+
 function resize() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = ui.app.clientWidth;
@@ -293,13 +321,26 @@ function buildMenu() {
     else if (d.skill) config.skill = d.skill;
     else if (d.sound) config.sound = d.sound === 'on';
     else if (d.voice) config.voice = d.voice === 'on';
-    else if (d.sens) settings.sensitivity = Number(d.sens);
-    else if (d.invert) settings.invert = d.invert === 'on';
+    else if (d.sens) {
+      settings.sensitivity = d.sens === 'reset' ? 1
+        : clampSensitivity(settings.sensitivity + Number(d.sens));
+    } else if (d.touchsens) {
+      settings.touchSensitivity = d.touchsens === 'reset' ? 1
+        : clampSensitivity(settings.touchSensitivity + Number(d.touchsens));
+    } else if (d.invert) settings.invert = d.invert === 'on';
+    else if (d.hold) settings.touchHold = d.hold === 'on';
+    else if (d.tinvert) settings.touchInvertY = d.tinvert === 'on';
+    else if (d.thumbs) {
+      settings.thumbs = d.thumbs;
+      applyThumbs();
+    }
     else if (d.preset) {
       const preset = PRESETS.find((p) => p.key === d.preset);
       if (preset) settings.bindings = { ...preset.bindings };
     } else return;
-    if (d.sens || d.invert || d.preset) saveSettings(settings);
+    if (d.sens || d.touchsens || d.invert || d.hold || d.tinvert || d.thumbs || d.preset) {
+      saveSettings(settings);
+    }
     // Flag matches need a map with flags in it, and nothing else will do.
     if (config.mode === 'ctf' && !loadMap(config.map).flagMap) config.map = 'bastion';
     if (config.mode !== 'ctf' && !MAPS.find((m) => m.key === config.map).modes.includes(config.mode)) {
@@ -338,8 +379,12 @@ function refreshMenu() {
   mark('[data-skill]', (d) => d.skill === config.skill);
   mark('[data-sound]', (d) => (d.sound === 'on') === config.sound);
   mark('[data-voice]', (d) => (d.voice === 'on') === config.voice);
-  mark('[data-sens]', (d) => Number(d.sens) === settings.sensitivity);
   mark('[data-invert]', (d) => (d.invert === 'on') === settings.invert);
+  mark('[data-hold]', (d) => (d.hold === 'on') === settings.touchHold);
+  mark('[data-tinvert]', (d) => (d.tinvert === 'on') === settings.touchInvertY);
+  mark('[data-thumbs]', (d) => d.thumbs === settings.thumbs);
+  ui.sensValue.textContent = `${settings.sensitivity.toFixed(1)}×`;
+  ui.touchSensValue.textContent = `${settings.touchSensitivity.toFixed(1)}×`;
 
   for (const b of ui.mapButtons.querySelectorAll('button')) {
     const def = MAPS.find((m) => m.key === b.dataset.map);
@@ -446,7 +491,7 @@ function begin({ seats, seatIndex, seed, over }) {
     ui.over.classList.add('hidden');
     ui.pause.classList.add('hidden');
     document.body.classList.remove('menu');
-    if (touch) touch.attach();
+    if (input.touch) input.touch.attach();
     else input.lock();
   }));
 }
@@ -456,7 +501,7 @@ function pause(on) {
   paused = on;
   ui.pause.classList.toggle('hidden', !on);
   if (on) input.unlock();
-  else input.lock();
+  else if (!input.touch) input.lock();
 }
 
 function resume() {
@@ -474,7 +519,7 @@ function toMenu() {
   ui.menu.classList.remove('hidden');
   document.body.classList.add('menu');
   input.unlock();
-  if (touch) touch.detach();
+  touch.detach();
   refreshMenu();
 }
 
@@ -536,7 +581,7 @@ function frame(now) {
     yaw: transport.online || !me.human ? me.yaw : look.yaw,
     pitch: transport.online || !me.human ? me.pitch : look.pitch,
   });
-  hud.draw(state, { index: seat, time: renderer.time, scoreboard, touch: !!touch });
+  hud.draw(state, { index: seat, time: renderer.time, scoreboard, touch: !!input.touch });
   audio.setListener(me.x, me.y + 1.6, me.z,
     Math.cos((me.yaw / 65536) * Math.PI * 2), Math.sin((me.yaw / 65536) * Math.PI * 2));
   audio.steps(me, renderer.time);
