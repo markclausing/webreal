@@ -104,7 +104,11 @@ export async function open(url, { width = 1600, height = 900, mobile = false } =
   const page = {
     send,
     async evaluate(expression) {
-      const out = await send('Runtime.evaluate', { expression, returnByValue: true });
+      // awaitPromise, because half the things worth asking a page - "did that
+      // socket open?" - are promises, and without it you get back the promise.
+      const out = await send('Runtime.evaluate', {
+        expression, returnByValue: true, awaitPromise: true,
+      });
       return out?.result?.value;
     },
     /** Wait for src/main.js to say the arena is built and the match wound on. */

@@ -302,10 +302,13 @@ export function buildMesh(world, map) {
 
     // Something that lights itself is not shadowed by anything, so it is added
     // afterwards: a lamp in a dark corner is still a lamp.
+    // Enough to read as "this is lit from inside" and not enough to blow the
+    // texture off it: a jump pad should look like a plate with a light under it,
+    // not like a hole in the floor.
     if (solid.glow) {
-      r += solid.glow * 1.25;
-      g += solid.glow * 1.25;
-      b += solid.glow * 1.2;
+      r += solid.glow * 0.62;
+      g += solid.glow * 0.62;
+      b += solid.glow * 0.6;
     }
     return [r, g, b];
   }

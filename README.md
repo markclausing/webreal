@@ -205,6 +205,14 @@ somebody's input is not there anyway the simulation waits rather than guessing,
 so nobody can drift apart from anybody else, and a state hash is compared once a
 second to prove it.
 
+The copy linked at the top already has a relay: a Cloudflare Worker, which is
+about two hundred lines in [worker/](worker/) and a single Durable Object,
+because a Worker on its own is stateless and cannot hold four sockets in the same
+room. It stores nothing at all — a room exists while its sockets are open and is
+forgotten when the last one closes — and it never sees a position, a score or a
+hit. `npm start` does the same job locally in the same number of lines, and
+`npm run test:net` is pointed at that one.
+
 ![Sluice, from the walkway](docs/screenshots/sluice.png)
 
 ## Running it yourself
