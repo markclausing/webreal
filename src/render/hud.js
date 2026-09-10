@@ -218,10 +218,13 @@ export class Hud {
 
     const from = this.hurtFrom >= 0 ? state.bodies[this.hurtFrom] : null;
     if (!from || from === me) return;
-    const angle = Math.atan2(from.z - me.z, from.x - me.x) - (me.yaw / 65536) * Math.PI * 2;
+    // Where they are, relative to where you are looking. The canvas turns
+    // clockwise and the marker below is drawn pointing up, so the bearing is the
+    // rotation: nought is straight ahead, a quarter turn is off to the right.
+    const bearing = Math.atan2(from.z - me.z, from.x - me.x) - (me.yaw / 65536) * Math.PI * 2;
     ctx.save();
     ctx.translate(w / 2, h / 2);
-    ctx.rotate(angle + Math.PI / 2);
+    ctx.rotate(bearing);
     ctx.globalAlpha = k;
     ctx.fillStyle = '#ff5a3c';
     ctx.beginPath();

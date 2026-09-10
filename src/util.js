@@ -129,6 +129,31 @@ export function atan2A(y, x) {
   return Math.round((r / TAU) * YAW_UNITS);
 }
 
+/**
+ * The two directions a body can walk in, given where it is looking.
+ *
+ * Forward is where the eyes are pointed, flattened onto the floor. Right is
+ * forward crossed with up - which, with X east, Y up and Z north, comes out as
+ * (-sin, cos) and *not* as (sin, -cos).
+ *
+ * It lives here because three separate places need it to agree: the simulation
+ * turning buttons into movement, the bots turning a direction back into buttons,
+ * and the renderer building the camera. They did not agree. The camera had it
+ * right and the simulation had it backwards, so pressing D walked you to the
+ * left of the screen - and the test that was supposed to catch that had been
+ * written from the same wrong idea, checked the same wrong direction, and
+ * passed.
+ */
+export function walkBasis(yaw, out = {}) {
+  const sn = sinA(yaw);
+  const cs = cosA(yaw);
+  out.fx = cs;
+  out.fz = sn;
+  out.rx = -sn;
+  out.rz = cs;
+  return out;
+}
+
 // --- Randomness --------------------------------------------------------------
 
 // mulberry32: fast, deterministic, and the seed fits in a single integer.

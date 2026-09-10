@@ -67,6 +67,19 @@ export class Touch {
     return !!(coarse && touch);
   }
 
+  /**
+   * Is this pointer a thumb?
+   *
+   * A machine can have both. A touchscreen laptop gets the thumb controls
+   * automatically, and if this layer also swallowed the mouse then the mouse
+   * would stop working the moment the thumbs appeared - no pointer lock, no
+   * look, nothing. So it takes touches and pens and leaves the mouse to the
+   * mouse, and the two work at the same time.
+   */
+  mine(e) {
+    return !e.pointerType || e.pointerType === 'touch' || e.pointerType === 'pen';
+  }
+
   attach() {
     this.enabled = true;
     this.root.classList.remove('hidden');
@@ -89,7 +102,7 @@ export class Touch {
   }
 
   down(e) {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.mine(e)) return;
     const half = window.innerWidth / 2;
     if (e.clientX < half && this.moveId === null) {
       this.moveId = e.pointerId;
@@ -111,7 +124,7 @@ export class Touch {
   }
 
   move(e) {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.mine(e)) return;
     if (e.pointerId === this.moveId) {
       this.moveAt = { x: e.clientX, y: e.clientY };
       if (this.knob) {
@@ -168,20 +181,21 @@ export class Touch {
     // then whoever you were turning towards has shot you. This is a swipe of
     // about two centimetres for the same ninety, and the same slider in the menu
     // moves it either way.
-    // The thumb has its own settings, not the mouse's: a different gain and a
-    // different idea of which way is which. Holding the scene means a drag to
-    // the left brings the room left and turns you right, which is the sign
-    // below; pushing the view is the mouse's convention and flips both.
-    const hold = input.settings.touchHold ? 1 : -1;
+    // The thumb has its own settings, not the mouse's: a different gain, and its
+    // own idea of which way each axis goes. Yaw counts clockwise, so adding the
+    // drag to it turns you the way your thumb went; pitch counts upwards, so
+    // adding the drag to it looks up as the thumb goes down, which is the
+    // inverted vertical nearly every phone player wants.
     const k = input.settings.touchSensitivity * (YAW_UNITS / 360) * 0.38;
     if (this.dyaw) {
-      input.yaw = wrapYaw(input.yaw + this.dyaw * k * hold);
+      const x = input.settings.touchInvertX ? -1 : 1;
+      input.yaw = wrapYaw(input.yaw + this.dyaw * k * x);
       this.dyaw = 0;
     }
     if (this.dpitch) {
-      const flip = input.settings.touchInvertY ? -1 : 1;
+      const y = input.settings.touchInvertY ? 1 : -1;
       input.pitch = Math.max(-PITCH_LIMIT,
-        Math.min(PITCH_LIMIT, input.pitch + this.dpitch * k * hold * flip));
+        Math.min(PITCH_LIMIT, input.pitch + this.dpitch * k * y));
       this.dpitch = 0;
     }
 

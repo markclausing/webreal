@@ -33,12 +33,14 @@ import {
   OVER_TICKS, P_EYE, P_HEIGHT, P_RADIUS, RESPAWN_TICKS, ROCKET_LIFE, RUN_SPEED,
   SHIELD_BREAK_SPEED, SPREE_STEPS, TICK_RATE, VOID_DAMAGE, WEAPONS, YAW_UNITS,
 } from '../constants.js';
-import { clamp, cosA, nextRandom, randSpread, sinA } from '../util.js';
+import { clamp, cosA, nextRandom, randSpread, sinA, walkBasis } from '../util.js';
 import { boxBlocked, moveBody, padUnder, traceRay, visible } from './world.js';
 import { placeAtSpawn } from './state.js';
 import { botInput } from './ai.js';
 
 const ZERO_INPUT = { b: 0, yaw: null, pitch: null };
+/** Reused rather than allocated: this is called for every body, every tick. */
+const basisScratch = {};
 
 export function step(state, inputs = []) {
   state.events.length = 0;
@@ -106,12 +108,12 @@ function move(state, body, mask) {
   const forward = (mask & BTN.FWD ? 1 : 0) - (mask & BTN.BACK ? 1 : 0);
   const strafe = (mask & BTN.RIGHT ? 1 : 0) - (mask & BTN.LEFT ? 1 : 0);
 
-  // The way the body is facing on the floor plan. Pitch is for looking and for
-  // shooting; it has nothing to do with which way running forwards takes you.
-  const sn = sinA(body.yaw);
-  const cs = cosA(body.yaw);
-  let wx = cs * forward + sn * strafe;
-  let wz = sn * forward - cs * strafe;
+  // The way the body is facing on the floor plan, and the way its right hand
+  // points. Pitch is for looking and for shooting; it has nothing to do with
+  // which way running forwards takes you.
+  const basis = walkBasis(body.yaw, basisScratch);
+  let wx = basis.fx * forward + basis.rx * strafe;
+  let wz = basis.fz * forward + basis.rz * strafe;
   const wl = Math.sqrt(wx * wx + wz * wz);
   if (wl > 0.0001) { wx /= wl; wz /= wl; } else { wx = 0; wz = 0; }
 

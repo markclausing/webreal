@@ -25,13 +25,14 @@ import {
   BTN, INSTA_WEAPON, MODES, P_EYE, P_HEIGHT, START_WEAPON, TICK_RATE, WEAPONS, YAW_UNITS,
 } from '../constants.js';
 import {
-  angleDelta, atan2A, clamp, cosA, nextRandom, randSpread, sinA,
+  angleDelta, atan2A, clamp, cosA, nextRandom, randSpread, sinA, walkBasis,
 } from '../util.js';
 import { visible } from './world.js';
 import { findPath, nearestNode } from './nav.js';
 
 /** How fast a bot can swing its aim, in yaw units a tick. About 300 deg/s. */
 const TURN_RATE = 900;
+const basisScratch = {};
 const SIGHT = 70;
 const REPATH = 40;
 
@@ -487,22 +488,18 @@ function drive(state, body, target) {
   if (wl > 0.001) {
     wantX /= wl;
     wantZ /= wl;
-    // Turn the direction into buttons: how much of it is along the way the bot
-    // is looking, and how much across it.
-    const sn = sinA(body.yaw);
-    const cs = cosA(body.yaw);
-    const along = wantX * cs + wantZ * sn;
-    const across = wantX * sn - wantZ * cs;
-    if (along > 0.35) mask |= BTN.FWD;
-    else if (along < -0.35) mask |= BTN.BACK;
-    // `across` is measured along the direction the RIGHT button moves a body -
-    // see move() in sim.js, which builds its wish vector as
-    // forward * (cos, sin) + strafe * (sin, -cos). Having these two the wrong
+    // Turn the direction into buttons, using the same forward and right the
+    // simulation walks along - see walkBasis in util.js. Having these the wrong
     // way round is a bot that strafes away from wherever it is trying to get to,
     // and it is very nearly invisible: with the goal ahead of it the forward
     // button dominates and it arrives anyway, only wobbling. It is in a fight,
     // when the aim is on the enemy and the movement is all sideways, that it
     // becomes a bot that cannot cross ten metres, and that is what it was.
+    const basis = walkBasis(body.yaw, basisScratch);
+    const along = wantX * basis.fx + wantZ * basis.fz;
+    const across = wantX * basis.rx + wantZ * basis.rz;
+    if (along > 0.35) mask |= BTN.FWD;
+    else if (along < -0.35) mask |= BTN.BACK;
     if (across > 0.35) mask |= BTN.RIGHT;
     else if (across < -0.35) mask |= BTN.LEFT;
   }

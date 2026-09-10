@@ -188,25 +188,31 @@ somebody is to shoot them, and reaching for a button loses the aim. `FIRE`,
 `JUMP` and `WPN` are along the bottom right where a thumb already is.
 
 The thumb and the mouse are two different instruments and they do not share a
-setting. A mouse is a pointer you push the view with; a thumb on glass is holding
-the scene, so dragging left brings the room left and turns you right. Both have
-their own speed in the menu — a stepper, not four presets, because the number
-that is right for a phone is about a fifth of the one that is right for a mouse —
-and the thumb has its own `Holds the scene` / `Pushes the view` switch on top of
-that. Set it to push if you are testing the phone controls on a laptop
-touchpad, which is the one machine where both conventions turn up in the same
-hour.
+setting. Both have their own speed in the menu — a stepper, not four presets,
+because the number that suits a thumb is about twice the one that suits a mouse —
+and the thumb has its own invert for each axis. Its vertical starts inverted,
+because that is what a thumb wants: drag down and the view tips up, as though you
+were holding the screen rather than pushing a pointer.
 
 `Thumbs: Always` puts the thumb controls on a machine that never asked for them,
-which is the other half of testing them without a phone.
+which is how you try them without a phone. The mouse goes on working alongside
+them — the thumb layer takes touches and pens and leaves mouse pointers to the
+mouse, so a laptop with a touchscreen has both.
 
 The playing surface is marked `touch-action: none`, which is not a detail. Left
 off, the first few pixels of every drag arrive and then the browser decides the
 gesture is a scroll, keeps the rest of it and cancels the pointer — which feels
 exactly like a look control set far too slow, because every swipe is worth one
-step of it and then stops. `npm run test:keys` drags a real thumb across a real
-browser and checks both which way the view went and how far, which is the only
-way to catch that from the outside.
+step of it and then stops.
+
+`npm run test:keys` drives a real browser and checks which way the view went and
+how far, for the mouse and for the thumb, both ways round. It is there because
+three separate things in this game were the wrong way round and none of them was
+visible from reading the code: the mouse turned left when it went right, the
+strafe buttons were swapped, and the damage marker pointed a quarter turn off.
+All three were the same mistake — an angle convention assumed rather than
+derived — and the fix was to derive it once, in `walkBasis`, and have the
+simulation, the bots and the tests all read that.
 
 ## Four people, one match, no server that decides anything
 

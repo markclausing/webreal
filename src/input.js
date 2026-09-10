@@ -97,13 +97,13 @@ export function loadSettings(key = STORAGE_KEY) {
     // Mouse and gamepad.
     sensitivity: 1.0,
     invert: false,
-    // Thumbs.
+    // Thumbs. Normal means the mouse's convention - drag right, turn right -
+    // and the vertical is inverted by default because that is what nearly
+    // everybody wants from a thumb: drag down, look up, as though the screen
+    // were being tipped.
     touchSensitivity: 1.0,
-    // Does dragging hold the scene (drag left, the room comes left, you turn
-    // right) or push the view (drag left, you turn left)? Holding is what a
-    // phone wants; pushing is what a touchpad wants.
-    touchHold: true,
-    touchInvertY: false,
+    touchInvertX: false,
+    touchInvertY: true,
     // auto | on | off - whether the thumb controls appear at all.
     thumbs: 'auto',
   };
@@ -124,8 +124,17 @@ export function loadSettings(key = STORAGE_KEY) {
       fallback.touchSensitivity = clampSensitivity(saved.touchSensitivity);
     }
     fallback.invert = !!saved?.invert;
-    if (saved?.touchHold !== undefined) fallback.touchHold = !!saved.touchHold;
-    fallback.touchInvertY = !!saved?.touchInvertY;
+    // The two thumb axes used to be one setting called touchHold, which said
+    // "the drag holds the scene" and did not. Anything stored under the old
+    // name is read as what it actually did.
+    if (saved?.touchHold !== undefined) {
+      fallback.touchInvertX = !saved.touchHold;
+      fallback.touchInvertY = !saved.touchInvertY;
+    }
+    if (saved?.touchInvertX !== undefined) fallback.touchInvertX = !!saved.touchInvertX;
+    if (saved?.touchInvertY !== undefined && saved?.touchHold === undefined) {
+      fallback.touchInvertY = !!saved.touchInvertY;
+    }
     if (['auto', 'on', 'off'].includes(saved?.thumbs)) fallback.thumbs = saved.thumbs;
     return fallback;
   } catch {
@@ -139,7 +148,7 @@ export function saveSettings(settings, key = STORAGE_KEY) {
   } catch { /* private mode, storage full: not worth interrupting a game for */ }
 }
 
-export const SENSITIVITY_MIN = 0.2;
+export const SENSITIVITY_MIN = 0.1;
 export const SENSITIVITY_MAX = 6;
 
 /** Kept inside the range the steppers can reach, and to one decimal place: a
@@ -214,10 +223,24 @@ export class Input {
       contextmenu: (e) => { if (this.locked) e.preventDefault(); },
       mousemove: (e) => {
         if (!this.locked) return;
-        // 0.022 degrees per count at sensitivity 1, which is about what every
-        // other shooter calls "1" and roughly 40 cm of desk for a full turn.
-        const k = this.settings.sensitivity * (YAW_UNITS / 360) * 0.022;
-        this.yaw = wrapYaw(this.yaw - e.movementX * k);
+        // Degrees of view per pixel of pointer movement, at sensitivity 1.
+        //
+        // This was 0.022, on the theory that a pixel here is a mouse count and
+        // that is what other shooters call "1". A pixel here is not a mouse
+        // count: under pointer lock the browser reports movement in CSS pixels,
+        // after the operating system's acceleration curve, and on a touchpad
+        // that is a few hundred of them for a whole swipe of the pad. Measured,
+        // the old number turned the view four degrees for two hundred pixels,
+        // which on a touchpad is indistinguishable from the mouse not working.
+        // At this one the same swipe is worth about a third of a turn, and the
+        // stepper in the menu reaches an eighth of it and six times it.
+        const k = this.settings.sensitivity * (YAW_UNITS / 360) * 0.16;
+        // Yaw counts clockwise: raising it turns you right, which is what the
+        // camera does with it. Taking movementX away from it therefore turned
+        // the view left when the mouse went right, for the whole of this game's
+        // short life, and the test that was meant to cover it had been written
+        // from the same assumption instead of from the camera.
+        this.yaw = wrapYaw(this.yaw + e.movementX * k);
         const dy = e.movementY * k * (this.settings.invert ? -1 : 1);
         this.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.pitch - dy));
       },
@@ -320,7 +343,7 @@ export class Input {
       // A stick is a rate, not a position, so it is squared to give some
       // control near the middle and all of it at the edge.
       const k = this.settings.sensitivity * 620;
-      this.yaw = wrapYaw(this.yaw - rx * Math.abs(rx) * k);
+      this.yaw = wrapYaw(this.yaw + rx * Math.abs(rx) * k);
       const dy = ry * Math.abs(ry) * k * (this.settings.invert ? -1 : 1);
       this.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.pitch - dy));
       if (pad.buttons[0]?.pressed) mask |= BTN.JUMP;

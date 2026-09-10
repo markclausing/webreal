@@ -162,9 +162,13 @@ function boot() {
     });
   }
 
-  ui.screen.addEventListener('click', () => {
-    if (state && paused) resume();
-    else if (state && !input.touch) input.lock();
+  // Clicking the picture takes the pointer, whether or not the thumbs are up:
+  // the thumb layer ignores the mouse, so both can be in use on the same
+  // machine.
+  ui.screen.addEventListener('pointerdown', (e) => {
+    if (!state) return;
+    if (paused) resume();
+    else if (e.pointerType === 'mouse' || !e.pointerType) input.lock();
   });
 
   document.body.classList.add('menu');
@@ -274,9 +278,8 @@ function applyThumbs() {
   } else if (state && running) {
     touch.attach();
   }
-  // With thumbs, the pointer is not locked - the two are different ways of
-  // playing and holding both at once locks the pointer on a touchscreen.
-  if (want) input.unlock();
+  // The pointer is not taken away here. A machine with a touchscreen still has
+  // a mouse, the thumb layer ignores it, and clicking still locks it.
 }
 
 function resize() {
@@ -328,8 +331,8 @@ function buildMenu() {
       settings.touchSensitivity = d.touchsens === 'reset' ? 1
         : clampSensitivity(settings.touchSensitivity + Number(d.touchsens));
     } else if (d.invert) settings.invert = d.invert === 'on';
-    else if (d.hold) settings.touchHold = d.hold === 'on';
-    else if (d.tinvert) settings.touchInvertY = d.tinvert === 'on';
+    else if (d.tinvertx) settings.touchInvertX = d.tinvertx === 'on';
+    else if (d.tinverty) settings.touchInvertY = d.tinverty === 'on';
     else if (d.thumbs) {
       settings.thumbs = d.thumbs;
       applyThumbs();
@@ -338,7 +341,7 @@ function buildMenu() {
       const preset = PRESETS.find((p) => p.key === d.preset);
       if (preset) settings.bindings = { ...preset.bindings };
     } else return;
-    if (d.sens || d.touchsens || d.invert || d.hold || d.tinvert || d.thumbs || d.preset) {
+    if (d.sens || d.touchsens || d.invert || d.tinvertx || d.tinverty || d.thumbs || d.preset) {
       saveSettings(settings);
     }
     // Flag matches need a map with flags in it, and nothing else will do.
@@ -380,8 +383,8 @@ function refreshMenu() {
   mark('[data-sound]', (d) => (d.sound === 'on') === config.sound);
   mark('[data-voice]', (d) => (d.voice === 'on') === config.voice);
   mark('[data-invert]', (d) => (d.invert === 'on') === settings.invert);
-  mark('[data-hold]', (d) => (d.hold === 'on') === settings.touchHold);
-  mark('[data-tinvert]', (d) => (d.tinvert === 'on') === settings.touchInvertY);
+  mark('[data-tinvertx]', (d) => (d.tinvertx === 'on') === settings.touchInvertX);
+  mark('[data-tinverty]', (d) => (d.tinverty === 'on') === settings.touchInvertY);
   mark('[data-thumbs]', (d) => d.thumbs === settings.thumbs);
   ui.sensValue.textContent = `${settings.sensitivity.toFixed(1)}×`;
   ui.touchSensValue.textContent = `${settings.touchSensitivity.toFixed(1)}×`;
