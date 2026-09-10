@@ -41,6 +41,17 @@ html, body {
   display: block;
 }
 
+/* Nothing on the playing surface is a gesture the browser gets to interpret.
+   Without this the first few pixels of a thumb drag arrive as pointermove and
+   then the browser decides it is a pan, sends pointercancel and keeps the rest -
+   which feels exactly like a very slow look control, because every swipe is
+   worth one step of it and then stops. preventDefault() on the move does not
+   help: touch-action is the only thing the compositor reads. */
+#app, #screen, #hud, #touch, #touchButtons, #stick {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
 #screen { background: #07080a; cursor: none; }
 #hud { pointer-events: none; }
 body.menu #screen { cursor: default; }

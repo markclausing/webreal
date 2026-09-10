@@ -8,9 +8,16 @@
  * is.
  *
  * The look is the hard part. A stick would be miserable, so dragging the right
- * side turns the view directly, at the same units per centimetre a mouse gets,
- * and a short tap in that half fires: on a phone the thing you most want after
- * pointing at somebody is to shoot them, and reaching for a button loses the aim.
+ * side turns the view directly, and a short tap in that half fires: on a phone
+ * the thing you most want after pointing at somebody is to shoot them, and
+ * reaching for a button loses the aim.
+ *
+ * Which way the drag goes is not the same question as it is for a mouse. A mouse
+ * is a pointer and you push the view with it; a thumb on glass is holding the
+ * scene, so pulling it to the left brings the room to the left, which turns you
+ * right. Both conventions have their people - `Invert Y` in the menu flips the
+ * vertical half back - but this is the one that survived being played on a
+ * phone.
  */
 
 import { BTN, PITCH_LIMIT, YAW_UNITS } from './constants.js';
@@ -30,7 +37,6 @@ export class Touch {
     this.lookMoved = 0;
     this.tapFire = 0;
     this.buttons = new Set();
-    this.sensitivity = 1;
 
     this.stick = root.querySelector('#stick');
     this.knob = root.querySelector('#knob');
@@ -119,8 +125,8 @@ export class Touch {
       const dy = e.clientY - this.lookAt.y;
       this.lookAt = { x: e.clientX, y: e.clientY };
       this.lookMoved += Math.abs(dx) + Math.abs(dy);
-      this.dyaw = (this.dyaw || 0) - dx;
-      this.dpitch = (this.dpitch || 0) - dy;
+      this.dyaw = (this.dyaw || 0) + dx;
+      this.dpitch = (this.dpitch || 0) + dy;
       e.preventDefault();
     }
   }
@@ -156,13 +162,20 @@ export class Touch {
       }
     }
 
-    const k = this.sensitivity * (YAW_UNITS / 360) * 0.10;
+    // Degrees of view per pixel of thumb, at sensitivity 1. A tenth of a degree
+    // was the first guess and it is a tenth of a degree: it takes a swipe and a
+    // half across the whole right side of a phone to turn ninety degrees, and by
+    // then whoever you were turning towards has shot you. This is a swipe of
+    // about two centimetres for the same ninety, and the same slider in the menu
+    // moves it either way.
+    const k = input.settings.sensitivity * (YAW_UNITS / 360) * 0.38;
     if (this.dyaw) {
       input.yaw = wrapYaw(input.yaw + this.dyaw * k);
       this.dyaw = 0;
     }
     if (this.dpitch) {
-      input.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, input.pitch + this.dpitch * k));
+      const dy = this.dpitch * (input.settings.invert ? -1 : 1);
+      input.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, input.pitch + dy * k));
       this.dpitch = 0;
     }
 

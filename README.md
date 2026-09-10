@@ -187,6 +187,19 @@ tap in it fires — because on a phone the thing you most want after pointing at
 somebody is to shoot them, and reaching for a button loses the aim. `FIRE`,
 `JUMP` and `WPN` are along the bottom right where a thumb already is.
 
+The thumb holds the scene rather than pushing a pointer: drag left and the room
+comes left, which turns you right. `Look` in the menu sets how far a swipe goes,
+for the mouse and the thumb alike, and `Invert Y` flips the vertical half back
+for anybody who wants it the other way.
+
+The playing surface is marked `touch-action: none`, which is not a detail. Left
+off, the first few pixels of every drag arrive and then the browser decides the
+gesture is a scroll, keeps the rest of it and cancels the pointer — which feels
+exactly like a look control set far too slow, because every swipe is worth one
+step of it and then stops. `npm run test:keys` drags a real thumb across a real
+browser and checks both which way the view went and how far, which is the only
+way to catch that from the outside.
+
 ## Four people, one match, no server that decides anything
 
 One of you opens a room and reads out the four-letter code; the rest join it.
