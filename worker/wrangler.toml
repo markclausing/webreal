@@ -15,6 +15,7 @@ class_name = "Arena"
 
 [[migrations]]
 tag = "v1"
-# No storage at all: a room exists while four sockets are open and is forgotten
-# the moment the last of them closes. There is nothing here worth keeping.
-new_classes = ["Arena"]
+# SQLite-backed, because that is the only kind of Durable Object the free plan
+# will create. Nothing here uses the storage: a room exists while four sockets
+# are open and is forgotten the moment the last of them closes.
+new_sqlite_classes = ["Arena"]
