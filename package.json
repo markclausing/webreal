@@ -1,0 +1,18 @@
+{
+  "name": "webreal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An arena shooter in the browser, in WebGL polygons with baked light. Shares its plumbing with websoccer, webtennis, webracing, webtype and webtrack.",
+  "scripts": {
+    "start": "node server/relay.js",
+    "test": "node tools/maptest.js && node tools/simtest.js && node tools/soundtest.js && node tools/netcheck.js && node tools/pagecheck.js",
+    "test:map": "node tools/maptest.js",
+    "test:sim": "node tools/simtest.js",
+    "test:net": "node tools/netcheck.js",
+    "test:page": "node tools/pagecheck.js",
+    "shots": "node tools/screenshot.js",
+    "test:keys": "node tools/keytest.js",
+    "test:sound": "node tools/soundtest.js"
+  }
+}

@@ -1,0 +1,20 @@
+# Deploy with:  npx wrangler login  &&  npx wrangler deploy
+#
+# A Worker of its own rather than websoccer's, webtennis's, webracing's,
+# webtype's or webtrack's. It costs nothing to have five of them, the rooms in
+# one game have no business finding the rooms in another, and a relay that is
+# only ever passing buttons along is the cheapest thing Cloudflare will run.
+
+name = "webreal"
+main = "index.js"
+compatibility_date = "2025-04-01"
+
+[[durable_objects.bindings]]
+name = "ARENA"
+class_name = "Arena"
+
+[[migrations]]
+tag = "v1"
+# No storage at all: a room exists while four sockets are open and is forgotten
+# the moment the last of them closes. There is nothing here worth keeping.
+new_classes = ["Arena"]

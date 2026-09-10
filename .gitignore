@@ -1,0 +1,4 @@
+node_modules/
+highscores.json
+.DS_Store
+shots/
