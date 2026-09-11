@@ -33,6 +33,7 @@ async function main() {
   const chrome = await launch();
   const page = await open(base);
   try {
+    await menuCheck(page);
     if (!await page.ready()) throw new Error('the page never finished building the arena');
     // Nobody else in the arena. The bot was killing the player halfway through,
     // which resets the weapons it had just been given and reads as a weapon key
@@ -165,6 +166,52 @@ async function main() {
  * amount: pulling the scene left turns you right, pulling it down looks up, and
  * a two centimetre swipe is worth something like a quarter turn.
  */
+/**
+ * The way a person starts a match: open the page, press FIGHT.
+ *
+ * Everything else in this file uses ?play=, which skips the menu - and skipping
+ * the menu skipped the one thing that was broken. Pointer lock needs a user
+ * gesture in the task that asks for it, begin() asks for it two frames and a
+ * light bake later, and the browser refuses. The symptom is a mouse that does
+ * nothing whatsoever, which is a poor first thirty seconds.
+ */
+async function menuCheck(page) {
+  await page.send('Page.navigate', { url: 'http://localhost:' + PORT + '/' });
+  await sleep(2500);
+  const box = await page.evaluate(`(() => {
+    const r = document.getElementById('start').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  })()`);
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await page.send('Input.dispatchMouseEvent', {
+      type, x: box.x, y: box.y, button: 'left', clickCount: 1,
+    });
+  }
+  for (let i = 0; i < 80; i++) {
+    if (await page.evaluate('!!window.__state')) break;
+    await sleep(500);
+  }
+  await sleep(1200);
+  check('pressing FIGHT starts a match', await page.evaluate('!!window.__state'));
+  check('and takes the pointer with it',
+    await page.evaluate('document.pointerLockElement !== null'));
+
+  const yaw = () => page.evaluate('window.__state.bodies[0].yaw');
+  const before = await yaw();
+  await page.evaluate(`for (let i = 0; i < 10; i++) {
+    window.dispatchEvent(new MouseEvent('mousemove', { movementX: 20 }));
+  } true`);
+  await sleep(400);
+  let turned = ((((await yaw()) - before) % 65536) + 65536) % 65536;
+  if (turned > 32768) turned -= 65536;
+  check(`so the mouse works without clicking anything else (${((turned / 65536) * 360).toFixed(0)} deg)`,
+    turned > 2000);
+
+  // Everything after this uses the ?play= path, which is quicker and can put
+  // the body where the check needs it.
+  await page.send('Page.navigate', { url: base });
+}
+
 /**
  * The mouse, under a locked pointer.
  *

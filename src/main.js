@@ -252,7 +252,6 @@ function autoStart() {
     // Hung off the window on purpose, and only on this path: tools/keytest and
     // anybody debugging in the console want to look at the match, and there is
     // no other way in - the module keeps it to itself.
-    window.__state = state;
     window.__ready = true;
   }, 60)));
 }
@@ -354,6 +353,13 @@ function buildMenu() {
 
   ui.start.addEventListener('click', () => {
     audio.start();
+    // The pointer is asked for here, inside the click, and not later when the
+    // match is ready. Pointer lock needs a user gesture in the task that asks
+    // for it, and by the time begin() has waited two frames and baked the
+    // light, the gesture is gone: Chrome answers "A user gesture is required to
+    // request Pointer Lock", the promise rejects, and the only symptom is a
+    // mouse that does nothing at all.
+    if (!thumbsWanted()) input.lock();
     if (signal && room.code && room.role === 'host') hostStart();
     else if (signal && room.code) ui.netStatus.textContent = 'Waiting for whoever opened the room to start it.';
     else begin({ seats: 1, seatIndex: 0, seed: (Math.random() * 2 ** 31) | 0 });
@@ -486,6 +492,10 @@ function begin({ seats, seatIndex, seed, over }) {
     audio.on = config.sound;
     if (config.sound) audio.start();
 
+    // Hung off the window on purpose: tools/keytest.js and anybody debugging in
+    // the console want to be able to look at the match, and the module keeps it
+    // to itself otherwise.
+    window.__state = state;
     accumulator = 0;
     lastFrame = performance.now();
     running = true;
@@ -584,7 +594,9 @@ function frame(now) {
     yaw: transport.online || !me.human ? me.yaw : look.yaw,
     pitch: transport.online || !me.human ? me.pitch : look.pitch,
   });
-  hud.draw(state, { index: seat, time: renderer.time, scoreboard, touch: !!input.touch });
+  hud.draw(state, {
+    index: seat, time: renderer.time, scoreboard, touch: !!input.touch, locked: input.locked,
+  });
   audio.setListener(me.x, me.y + 1.6, me.z,
     Math.cos((me.yaw / 65536) * Math.PI * 2), Math.sin((me.yaw / 65536) * Math.PI * 2));
   audio.steps(me, renderer.time);

@@ -161,6 +161,11 @@ export class Hud {
     this.drawShout(ctx, w, h, s);
     this.drawCall(ctx, w, h, s);
     if (!me.alive) this.drawDead(ctx, w, h, s, me);
+    // Without the pointer there is no aim, and the only sign of it used to be a
+    // mouse that did nothing. Now it says so.
+    if (!opts.touch && !opts.locked && state.phase !== 'over') {
+      this.centre(ctx, w, h * 0.62, 'CLICK TO TAKE THE MOUSE', 15 * s, 'rgba(255,209,102,0.9)');
+    }
     if (state.phase === 'warmup') {
       this.centre(ctx, w, h * 0.36, `${state.map.name.toUpperCase()}`, 34 * s, '#f2efe6');
       this.centre(ctx, w, h * 0.36 + 26 * s,

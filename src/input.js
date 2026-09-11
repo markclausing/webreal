@@ -200,6 +200,7 @@ export class Input {
     this.yaw = 0;
     this.pitch = 0;
     this.locked = false;
+    this.lockRefused = null;
     this.wheel = 0;
     this.touch = null;
     this.onLockChange = null;
@@ -251,6 +252,7 @@ export class Input {
       },
       pointerlockchange: () => {
         this.locked = document.pointerLockElement === this.canvas;
+        if (this.locked) this.lockRefused = null;
         if (!this.locked) this.down.clear();
         if (this.onLockChange) this.onLockChange(this.locked);
       },
@@ -286,12 +288,25 @@ export class Input {
     return false;
   }
 
+  /**
+   * Ask for the pointer.
+   *
+   * It can be refused - the commonest reason being that whatever gesture led
+   * here has already expired - and a refusal used to be swallowed whole, which
+   * made it look exactly like a broken mouse. It is remembered now, and the HUD
+   * says so.
+   */
   lock() {
     if (this.locked) return;
     const request = this.canvas.requestPointerLock?.bind(this.canvas);
-    if (request) {
+    if (!request) return;
+    try {
       const result = request();
-      if (result && typeof result.catch === 'function') result.catch(() => {});
+      if (result && typeof result.catch === 'function') {
+        result.catch((err) => { this.lockRefused = err?.message || 'refused'; });
+      }
+    } catch (err) {
+      this.lockRefused = err?.message || 'refused';
     }
   }
 
