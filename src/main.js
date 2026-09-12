@@ -103,6 +103,10 @@ let room = { code: null, role: null, seats: [false, false, false, false] };
 
 let paused = false;
 let scoreboard = false;
+/** What the person last pressed: 'touch', 'mouse', or nothing yet. */
+let pointerKind = null;
+/** ?touch=1, for photographing the phone controls from a desktop. */
+let pinnedThumbs = false;
 let accumulator = 0;
 let lastFrame = 0;
 let running = false;
@@ -128,12 +132,20 @@ function boot() {
   };
 
   // The thumb controls are always built and only sometimes used, so that
-  // turning them on in the menu does not need a reload. ?touch=1 is the same
-  // switch from the address bar, which is how the phone layout is photographed
-  // from a desktop.
+  // picking up a mouse halfway through a match needs no reload.
   touch = new Touch(ui.touch, ui.screen);
-  if (new URLSearchParams(location.search).get('touch') === '1') settings.thumbs = 'on';
-  applyThumbs();
+  pinnedThumbs = new URLSearchParams(location.search).get('touch') === '1';
+  input.touch = thumbsWanted() ? touch : null;
+
+  // Whatever is pressed decides, from the first press onwards. Captured, and
+  // before anything else sees it, so that the click which starts a match has
+  // already told us which kind of machine this is.
+  window.addEventListener('pointerdown', (e) => {
+    const kind = e.pointerType === 'mouse' ? 'mouse' : 'touch';
+    if (kind === pointerKind) return;
+    pointerKind = kind;
+    applyThumbs();
+  }, true);
 
   buildMenu();
   resize();
@@ -257,28 +269,39 @@ function autoStart() {
 }
 
 /**
- * Whether this machine gets thumbs.
+ * Whether this machine gets thumbs - decided by what is being used, not by what
+ * the machine says it is.
  *
- * Auto asks the browser, which is right nearly always and wrong in the one case
- * that matters while you are working on it: a laptop testing the phone controls.
- * Hence the other two settings.
+ * Asking the browser is the usual way and it is a guess: a touchscreen laptop
+ * answers one thing and its owner does another, and a tablet with a keyboard
+ * case changes its mind when the case is folded back. So the browser is asked
+ * once, for the very first frame, and after that whatever was last pressed
+ * decides. Touch the screen and the thumb controls appear; press the mouse and
+ * they go away and it takes the pointer instead. Both work on the same machine,
+ * in the same match, and nobody has to find a setting for it.
  */
 function thumbsWanted() {
-  if (settings.thumbs === 'on') return true;
-  if (settings.thumbs === 'off') return false;
+  if (pinnedThumbs) return true;
+  if (pointerKind === 'touch') return true;
+  if (pointerKind === 'mouse') return false;
   return Touch.wanted();
 }
 
 function applyThumbs() {
   const want = thumbsWanted();
+  if (input.touch === (want ? touch : null)) return;
   input.touch = want ? touch : null;
-  if (!want) {
+  if (want) {
+    if (state && running) touch.attach();
+    // A locked pointer is no use to a thumb, and it hides the cursor of the
+    // mouse that has just been put down.
+    input.unlock();
+  } else {
     touch.detach();
-  } else if (state && running) {
-    touch.attach();
+    // Reached from a pointerdown, so the gesture is still warm and this is
+    // allowed - which is the whole lesson of the FIGHT handler above.
+    if (state && running && !paused) input.lock();
   }
-  // The pointer is not taken away here. A machine with a touchscreen still has
-  // a mouse, the thumb layer ignores it, and clicking still locks it.
 }
 
 function resize() {
@@ -332,15 +355,12 @@ function buildMenu() {
     } else if (d.invert) settings.invert = d.invert === 'on';
     else if (d.tinvertx) settings.touchInvertX = d.tinvertx === 'on';
     else if (d.tinverty) settings.touchInvertY = d.tinverty === 'on';
-    else if (d.thumbs) {
-      settings.thumbs = d.thumbs;
-      applyThumbs();
-    }
+
     else if (d.preset) {
       const preset = PRESETS.find((p) => p.key === d.preset);
       if (preset) settings.bindings = { ...preset.bindings };
     } else return;
-    if (d.sens || d.touchsens || d.invert || d.tinvertx || d.tinverty || d.thumbs || d.preset) {
+    if (d.sens || d.touchsens || d.invert || d.tinvertx || d.tinverty || d.preset) {
       saveSettings(settings);
     }
     // Flag matches need a map with flags in it, and nothing else will do.
@@ -391,7 +411,6 @@ function refreshMenu() {
   mark('[data-invert]', (d) => (d.invert === 'on') === settings.invert);
   mark('[data-tinvertx]', (d) => (d.tinvertx === 'on') === settings.touchInvertX);
   mark('[data-tinverty]', (d) => (d.tinverty === 'on') === settings.touchInvertY);
-  mark('[data-thumbs]', (d) => d.thumbs === settings.thumbs);
   ui.sensValue.textContent = `${settings.sensitivity.toFixed(1)}×`;
   ui.touchSensValue.textContent = `${settings.touchSensitivity.toFixed(1)}×`;
 

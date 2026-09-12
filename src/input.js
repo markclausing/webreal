@@ -104,8 +104,6 @@ export function loadSettings(key = STORAGE_KEY) {
     touchSensitivity: 1.0,
     touchInvertX: false,
     touchInvertY: true,
-    // auto | on | off - whether the thumb controls appear at all.
-    thumbs: 'auto',
   };
   try {
     const raw = globalThis.localStorage?.getItem(key);
@@ -135,7 +133,6 @@ export function loadSettings(key = STORAGE_KEY) {
     if (saved?.touchInvertY !== undefined && saved?.touchHold === undefined) {
       fallback.touchInvertY = !!saved.touchInvertY;
     }
-    if (['auto', 'on', 'off'].includes(saved?.thumbs)) fallback.thumbs = saved.thumbs;
     return fallback;
   } catch {
     return fallback;

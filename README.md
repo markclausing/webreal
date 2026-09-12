@@ -194,10 +194,13 @@ and the thumb has its own invert for each axis. Its vertical starts inverted,
 because that is what a thumb wants: drag down and the view tips up, as though you
 were holding the screen rather than pushing a pointer.
 
-`Thumbs: Always` puts the thumb controls on a machine that never asked for them,
-which is how you try them without a phone. The mouse goes on working alongside
-them — the thumb layer takes touches and pens and leaves mouse pointers to the
-mouse, so a laptop with a touchscreen has both.
+There is no setting for whether you get thumb controls, because there does not
+need to be one. The browser is asked once, for the very first frame, and after
+that whatever was last pressed decides: touch the screen and the controls appear
+and the pointer is handed back, press the mouse and they go away and it takes the
+pointer instead. A touchscreen laptop answers one thing and its owner does
+another, and a tablet with a keyboard case changes its mind when the case is
+folded back — so the thing to follow is the person, not the machine.
 
 The playing surface is marked `touch-action: none`, which is not a detail. Left
 off, the first few pixels of every drag arrive and then the browser decides the
@@ -205,14 +208,20 @@ gesture is a scroll, keeps the rest of it and cancels the pointer — which feel
 exactly like a look control set far too slow, because every swipe is worth one
 step of it and then stops.
 
-`npm run test:keys` drives a real browser and checks which way the view went and
-how far, for the mouse and for the thumb, both ways round. It is there because
-three separate things in this game were the wrong way round and none of them was
-visible from reading the code: the mouse turned left when it went right, the
-strafe buttons were swapped, and the damage marker pointed a quarter turn off.
-All three were the same mistake — an angle convention assumed rather than
-derived — and the fix was to derive it once, in `walkBasis`, and have the
-simulation, the bots and the tests all read that.
+`npm run test:keys` drives a real browser: it presses FIGHT the way a person
+does, holds the keys, moves the mouse, drags a thumb both ways round, and
+switches between the two mid-match. Twenty-five checks, and it exists because
+four separate things were wrong in ways that reading the code would never show —
+the mouse turned left when it went right and by almost nothing, the strafe
+buttons were swapped, the browser was cancelling every drag gesture halfway
+through, and the pointer was asked for one gesture too late, so pressing FIGHT
+gave you a match in which the mouse did nothing at all.
+
+Three of those were the same mistake made three times: an angle convention
+assumed rather than derived. It is derived once now, in `walkBasis`, and the
+simulation, the bots and the tests all read it from there — and the tests measure
+against what the camera puts on the screen, because a test written from the same
+wrong idea as the code will pass while the game is broken. This one did.
 
 ## Four people, one match, no server that decides anything
 
